@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Django
+*.log
+staticfiles/
+media/
+db.sqlite3
+
+# Środowisko i sekrety
+.env
+*.pem
+*.key
+
+# Docker
+docker-compose.override.yml
+
+# Dane
+*.csv
+!seed/**/*.csv
+*.parquet
+
+# IDE i system
+.idea/
+.vscode/
+.DS_Store

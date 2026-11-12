@@ -30,11 +30,10 @@ Platforma, która pozwala organizacji szybko i wiarygodnie odpowiedzieć na pyta
 | Obszar | W MVP | Poza MVP (rozwój) |
 |---|---|---|
 | Katalog | Rejestracja zbioru (CSV), wersje, wyszukiwanie, klasyfikacja kolumn, przypisanie Ownera i Stewarda | Parquet/JSON, połączenie z bazą, lineage jako graf |
-| Jakość | Kompletność, unikalność, aktualność (automatycznie); poprawność i spójność z reguł; dashboard | Alerty, rekomendacje, e-mail |
-| Zgodność | Kwestionariusz ryzyka AI Act (drzewo decyzyjne), listy kontrolne AI Act i RODO | Metryki reprezentatywności i biasu |
+| Jakość | Kompletność, unikalność, aktualność (automatycznie); poprawność i spójność z reguł Stewarda; dashboard | Historia jakości po wersjach, alerty, rekomendacje, e-mail |
+| Zgodność | Kwestionariusz ryzyka AI Act przy wniosku, potwierdzenie klasy ryzyka przez Compliance, lista kontrolna RODO na etapie IOD | Lista wymogów art. 10, reprezentatywność i bias, maskowanie kolumn PII |
 | Workflow | Wniosek, maszyna stanów (Owner → Steward → Compliance → DPO jeśli PII), historia decyzji | Certyfikat PDF, bramki jakości |
-| Platforma | Logowanie, role (RBAC), audit trail, tryb demo (przełącznik ról) | SSO/LDAP, powiadomienia e-mail |
- 
+| Platforma | Logowanie, 6 ról (RBAC), audit trail, tryb demo (przełącznik ról) | SSO/LDAP, powiadomienia e-mail, REST API z OpenAPI | 
 ### 6. Poza zakresem
 - Udzielanie porad prawnych (narzędzie wspierające decyzję człowieka).
 - Automatyczne pozyskiwanie lineage z zewnętrznych systemów.
@@ -47,9 +46,9 @@ Platforma, która pozwala organizacji szybko i wiarygodnie odpowiedzieć na pyta
 - Zmiana wymagań: najpierw aktualizacja dokumentacji wymagań, potem zadania.
 ### 8. Założenia i ograniczenia
 - Dane testowe i demonstracyjne są wyłącznie syntetyczne.
-- Platforma przechowuje metadane, statystyki i zamaskowane próbki; nie gromadzi pełnych danych osobowych.
+- W bazie przechowujemy metadane, statystyki i zamaskowane próbki (maks. 100 wierszy); surowe pliki leżą w magazynie dostępnym tylko przez aplikację.
 - Klasyfikacja ryzyka AI Act jest uproszczona i wymaga weryfikacji prawnej przed jakimkolwiek użyciem poza projektem dydaktycznym.
-- Czas: dwa semestry; semestr 1 to projektowanie i szkielet, semestr 2 to realizacja **[DO POTWIERDZENIA z prowadzącym]**.
+- Czas: dwa semestry po 5 sprintów; semestr V to MVP, semestr VI to rozszerzenia **[DO POTWIERDZENIA z prowadzącym]**.
 ### 9. Kryteria sukcesu
 - Scenariusz główny działa end-to-end: rejestracja zbioru z danymi osobowymi → profilowanie → ocena jakości → kwestionariusz ryzyka → wniosek → cztery zatwierdzenia → pełna historia decyzji.
 - Wniosek ze zbiorem zawierającym dane osobowe nie może zostać zatwierdzony bez decyzji DPO.
@@ -61,5 +60,5 @@ Platforma, która pozwala organizacji szybko i wiarygodnie odpowiedzieć na pyta
 | Błędna interpretacja przepisów | Weryfikacja w źródłach i z prowadzącym; zastrzeżenie w UI |
 | Zbyt złożona infrastruktura | Najprostsza architektura spełniająca wymagania; decyzje w ADR |
 | Korzystanie z LLM bez weryfikacji | Każdy artefakt ma autora, który za niego odpowiada |
- 
+| Sprinty 3 i 4 przeładowane | Wycena zespołowa; w razie potrzeby przesunięcie części wymagań do kolejnego sprintu |
 ---
