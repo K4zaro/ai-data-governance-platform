@@ -19,10 +19,12 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
       POSTGRES_DB: governance
       POSTGRES_USER: app_owner
       POSTGRES_PASSWORD: postgres
       DJANGO_SECRET_KEY: ci-only
+      CELERY_BROKER_URL: memory://
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
