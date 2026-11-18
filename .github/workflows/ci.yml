@@ -1,4 +1,5 @@
 name: CI
+
 on:
   pull_request:
     branches: [develop, main]
@@ -6,37 +7,39 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_DB: governance
           POSTGRES_USER: app_owner
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U app_owner"
-          --health-interval 5s --health-timeout 5s --health-retries 10
+          --health-cmd "pg_isready -U app_owner -d governance"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       POSTGRES_HOST: localhost
       POSTGRES_PORT: "5432"
       POSTGRES_DB: governance
       POSTGRES_USER: app_owner
-      POSTGRES_PASSWORD: postgres
-      DJANGO_SECRET_KEY: ci-only
+      POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+      DJANGO_SECRET_KEY: ${{ secrets.CI_DJANGO_SECRET_KEY }}
       CELERY_BROKER_URL: memory://
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
-        if: ${{ hashFiles('manage.py') != '' }}
         with:
           python-version: "3.12"
-      - name: Zależności
-        if: ${{ hashFiles('manage.py') != '' }}
-        run: pip install -r requirements.txt ruff
-      - name: Lint
-        if: ${{ hashFiles('manage.py') != '' }}
-        run: ruff check .
-      - name: Testy
-        if: ${{ hashFiles('manage.py') != '' }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Tests
         run: python manage.py test
