@@ -102,6 +102,7 @@ class AuditLog(models.Model):
 
     class Meta:
         db_table = "audit_log"
+        base_manager_name = "objects"
         ordering = ["-ts_utc", "-id"]
         verbose_name = "Wpis dziennika audytu"
         verbose_name_plural = "Dziennik audytu"

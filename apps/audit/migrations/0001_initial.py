@@ -33,6 +33,7 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'Dziennik audytu',
                 'db_table': 'audit_log',
                 'ordering': ['-ts_utc', '-id'],
+                'base_manager_name': 'objects',
                 'indexes': [models.Index(fields=['object_type', 'object_id'], name='audit_log_object_idx')],
             },
         ),

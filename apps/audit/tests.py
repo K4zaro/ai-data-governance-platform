@@ -153,6 +153,38 @@ class AuditLogModelTests(TestCase):
         refreshed = AuditLog.objects.get(pk=entry.pk)
         self.assertEqual(refreshed.action, AuditAction.ASSIGNMENT_CHANGED)
 
+    def test_cannot_bypass_immutability_via_base_manager(self):
+        entry = AuditLog.objects.create(
+            actor=self.user,
+            action=AuditAction.ROLE_CHANGED,
+            object_type="User",
+            object_id="99",
+            before={"roles": []},
+            after={"roles": ["ADMIN"]},
+        )
+
+        self.assertEqual(AuditLog._meta.base_manager_name, "objects")
+
+        with self.assertRaises(AuditLogImmutabilityError):
+            AuditLog._base_manager.filter(pk=entry.pk).update(action="HACKED")
+
+        with self.assertRaises(AuditLogImmutabilityError):
+            AuditLog._base_manager.update(object_type="HACKED")
+
+        with self.assertRaises(AuditLogImmutabilityError):
+            AuditLog._base_manager.filter(pk=entry.pk).delete()
+
+        with self.assertRaises(AuditLogImmutabilityError):
+            AuditLog._base_manager.all().delete()
+
+        entry.action = AuditAction.ACCESS_DENIED
+        with self.assertRaises(AuditLogImmutabilityError):
+            AuditLog._base_manager.bulk_update([entry], ["action"])
+
+        refreshed = AuditLog.objects.get(pk=entry.pk)
+        self.assertEqual(refreshed.action, AuditAction.ROLE_CHANGED)
+        self.assertEqual(AuditLog.objects.filter(pk=entry.pk).count(), 1)
+
     def test_referenced_actor_cannot_be_deleted_silently(self):
         AuditLog.objects.create(
             actor=self.user,
@@ -247,22 +279,25 @@ class AuditLogServiceTests(TestCase):
         self.assertEqual(get_client_ip(request), "192.0.2.10")
 
     @override_settings(AUDIT_TRUST_X_FORWARDED_FOR=True, AUDIT_TRUSTED_PROXIES=[])
-    def test_ip_uses_x_forwarded_for_when_explicitly_enabled(self):
+    def test_ip_ignores_x_forwarded_for_when_trusted_proxies_empty(self):
         request = self.factory.get(
             "/",
-            REMOTE_ADDR="10.0.0.1",
-            HTTP_X_FORWARDED_FOR="203.0.113.55, 10.0.0.2",
+            REMOTE_ADDR="192.0.2.25",
+            HTTP_X_FORWARDED_FOR="1.2.3.4, 10.0.0.2",
         )
-        self.assertEqual(get_client_ip(request), "203.0.113.55")
+        self.assertEqual(get_client_ip(request), "192.0.2.25")
 
-    @override_settings(AUDIT_TRUST_X_FORWARDED_FOR=True, AUDIT_TRUSTED_PROXIES=[])
+    @override_settings(
+        AUDIT_TRUST_X_FORWARDED_FOR=True,
+        AUDIT_TRUSTED_PROXIES=["10.0.0.0/8"],
+    )
     def test_ip_falls_back_to_remote_addr_when_x_forwarded_for_is_invalid(self):
         request = self.factory.get(
             "/",
-            REMOTE_ADDR="192.0.2.15",
+            REMOTE_ADDR="10.0.0.15",
             HTTP_X_FORWARDED_FOR="not-an-ip, spoofed",
         )
-        self.assertEqual(get_client_ip(request), "192.0.2.15")
+        self.assertEqual(get_client_ip(request), "10.0.0.15")
 
     @override_settings(
         AUDIT_TRUST_X_FORWARDED_FOR=True,
@@ -279,7 +314,7 @@ class AuditLogServiceTests(TestCase):
         trusted_request = self.factory.get(
             "/",
             REMOTE_ADDR="10.1.2.3",
-            HTTP_X_FORWARDED_FOR="198.51.100.1, 203.0.113.77, 10.0.0.5",
+            HTTP_X_FORWARDED_FOR="1.2.3.4, 203.0.113.77, 10.0.0.5",
         )
         self.assertEqual(get_client_ip(trusted_request), "203.0.113.77")
 
@@ -334,6 +369,9 @@ class AuditLogServiceTests(TestCase):
             log_audit_event(action="", object_type="Dataset")
 
         with self.assertRaises(ValueError):
+            log_audit_event(action="TOTALLY_MADE_UP", object_type="Dataset")
+
+        with self.assertRaises(ValueError):
             log_audit_event(action=AuditAction.DATASET_REGISTERED, object_type="")
 
         with self.assertRaises(ValueError):
@@ -342,6 +380,8 @@ class AuditLogServiceTests(TestCase):
                 object_type="Dataset",
                 ip="invalid-ip",
             )
+
+        self.assertEqual(AuditLog.objects.count(), 0)
 
 
 class AuditLogAdminTests(TestCase):

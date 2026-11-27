@@ -8,7 +8,7 @@ from uuid import UUID
 from django.conf import settings
 from django.http import HttpRequest
 
-from apps.audit.models import AuditLog
+from apps.audit.models import AuditAction, AuditLog
 
 FORBIDDEN_PII_KEYS = frozenset(
     {
@@ -141,9 +141,9 @@ def _is_trusted_proxy(ip_str: str | None, trusted_proxies: list[str] | tuple[str
 def get_client_ip(request: HttpRequest | None) -> str | None:
     """Extract client IP cautiously.
 
-    Never trusts X-Forwarded-For unless AUDIT_TRUST_X_FORWARDED_FOR is explicitly enabled.
-    When AUDIT_TRUSTED_PROXIES is also configured, only trusts X-Forwarded-For if REMOTE_ADDR
-    belongs to a trusted proxy, and strips trusted proxy hops from right to left.
+    Never trusts X-Forwarded-For unless BOTH AUDIT_TRUST_X_FORWARDED_FOR is enabled
+    AND AUDIT_TRUSTED_PROXIES is non-empty with REMOTE_ADDR matching a trusted proxy.
+    Strips trusted proxy hops from right to left to prevent X-Forwarded-For spoofing.
     """
     if request is None:
         return None
@@ -153,8 +153,12 @@ def get_client_ip(request: HttpRequest | None) -> str | None:
     if not trust_xff:
         return remote_addr
 
-    trusted_proxies = list(getattr(settings, "AUDIT_TRUSTED_PROXIES", []))
-    if trusted_proxies and not _is_trusted_proxy(remote_addr, trusted_proxies):
+    trusted_proxies = [
+        str(proxy).strip()
+        for proxy in getattr(settings, "AUDIT_TRUSTED_PROXIES", [])
+        if str(proxy).strip()
+    ]
+    if not trusted_proxies or not _is_trusted_proxy(remote_addr, trusted_proxies):
         return remote_addr
 
     xff_header = request.META.get("HTTP_X_FORWARDED_FOR", "")
@@ -166,12 +170,9 @@ def get_client_ip(request: HttpRequest | None) -> str | None:
     if not valid_forwarded:
         return remote_addr
 
-    if trusted_proxies:
-        for ip_candidate in reversed(valid_forwarded):
-            if not _is_trusted_proxy(ip_candidate, trusted_proxies):
-                return ip_candidate
-        return valid_forwarded[0]
-
+    for ip_candidate in reversed(valid_forwarded):
+        if not _is_trusted_proxy(ip_candidate, trusted_proxies):
+            return ip_candidate
     return valid_forwarded[0]
 
 
@@ -189,6 +190,12 @@ def log_audit_event(
     """Single service entry point used by all modules to record an immutable audit event."""
     if not action or not str(action).strip():
         raise ValueError("Parametr 'action' jest wymagany.")
+    normalized_action = str(action).strip()
+    if normalized_action not in AuditAction.values:
+        allowed = ", ".join(AuditAction.values)
+        raise ValueError(
+            f"Nieznana akcja audytowa: '{normalized_action}'. Dozwolone wartości: {allowed}."
+        )
     if not object_type or not str(object_type).strip():
         raise ValueError("Parametr 'object_type' jest wymagany.")
 
@@ -213,7 +220,7 @@ def log_audit_event(
     return AuditLog.objects.create(
         actor=resolved_actor,
         ip=resolved_ip,
-        action=str(action).strip(),
+        action=normalized_action,
         object_type=str(object_type).strip(),
         object_id=resolved_object_id,
         before=before,
