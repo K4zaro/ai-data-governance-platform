@@ -136,3 +136,14 @@ CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_SERIALIZER = "json"
+
+# Audit log settings (IAP-64)
+# X-Forwarded-For is never trusted unless explicitly enabled behind a trusted proxy.
+AUDIT_TRUST_X_FORWARDED_FOR = (
+    os.environ.get("AUDIT_TRUST_X_FORWARDED_FOR", "false").lower() == "true"
+)
+AUDIT_TRUSTED_PROXIES = [
+    proxy.strip()
+    for proxy in os.environ.get("AUDIT_TRUSTED_PROXIES", "").split(",")
+    if proxy.strip()
+]
